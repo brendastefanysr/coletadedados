@@ -1,0 +1,157 @@
+ #include <SPI.h> //para o módulo SD Card
+#include <SD.h> // para o SD card
+#include <DHT.h> // para o DHT sensor
+#include <RTClib.h> // para o RTC
+//Conectado ao pino Digital da placa
+//Definição dos sensores
+#define DHTPIN11 2 
+#define DHTTYPE11 DHT11 // sensor DHT 11 
+DHT dht11 (DHTPIN11, DHTTYPE11);
+#define DHTPIN22 5
+#define DHTTYPE22 DHT22 // sensor DHT22
+DHT dht22 (DHTPIN22, DHTTYPE22);
+
+const int chipSelect = 4; 
+
+// Crie um arquivo para armazenar os dados
+File myFile;
+
+// RTC
+RTC_DS1307 rtc;
+
+void setup() {
+  //inicializando os sensores
+    dht11.begin();
+    dht22.begin();
+
+  //inicializando o monitor serial
+  Serial.begin(9600);
+  
+  // configuração para o RTC
+  while(!Serial); 
+    if(! rtc.begin()) {
+      Serial.println("Não foi possível encontrar o RTC");
+      while (1);
+    }
+    else {
+      // A linha a seguir define o RTC para a data e hora em que este esboço foi compilado
+      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    }
+    if(! rtc.isrunning()) {
+      Serial.println("O RTC NÃO está sendo executado!");
+    }
+    
+  //configuração para o cartão SD
+  Serial.print("Inicializando o SD Card...");
+
+  if(!SD.begin(chipSelect)) {
+    Serial.println("falha na inicialização!");
+    return;
+  }
+  Serial.println("inicialização feita.");
+    
+  //abrir arquivo
+  myFile=SD.open("dados2.txt", FILE_WRITE);
+
+  // se o arquivo foi aberto, escreva para ele:
+  if (myFile) {
+    Serial.println("Arquivo aberto ok");
+    // imprima os títulos dos nossos dados
+    myFile.println("Data,Horário,Temperatura °C ,Umidade % , Temperatura TGN °C");
+
+  }
+  myFile.close();
+}
+
+void loggingTime() {
+  DateTime now = rtc.now();
+  myFile = SD.open("dados2.txt", FILE_WRITE);
+  if (myFile) {
+    myFile.print("Data:");
+    myFile.print(now.day(), DEC);
+    myFile.print('/');
+    myFile.print(now.month(), DEC);
+    myFile.print('/');
+    myFile.print(now.year(), DEC);
+    myFile.print(';');
+    myFile.print("Horas: ");
+    myFile.print(now.hour(), DEC);
+    myFile.print(':');
+    myFile.print(now.minute(), DEC);
+    myFile.print(':');
+    myFile.print(now.second(), DEC);
+    myFile.print(".");
+  }
+  Serial.print(now.year(), DEC);
+  Serial.print('/');
+  Serial.print(now.month(), DEC);
+  Serial.print('/');
+  Serial.println(now.day(), DEC);
+  Serial.print(now.hour(), DEC);
+  Serial.print(':');
+  Serial.print(now.minute(), DEC);
+  Serial.print(':');
+  Serial.println(now.second(), DEC);
+  myFile.close();
+  delay(1000);  
+}
+
+void loggingTemperature() {
+  
+  //float t = dht.readTemperature();
+  //float ur = dht.readHumidity();//(true);
+  float tDHT11 = dht11.readTemperature();
+  float urDHT11 = dht11.readHumidity();//(true);
+ // float tDHT22 = dht22.readTemperature();
+  if  (isnan(tDHT11) || isnan(urDHT11)) {
+    Serial.println("Falha ao ler o sensor DHT!");
+    return;
+  }
+//fins de depuração
+     Serial.print("Temperatura: "); 
+     Serial.print(tDHT11);
+     Serial.println(" *C");
+     Serial.print("Umidade Relativa: ");
+     Serial.print(urDHT11);
+     Serial.println(" %");
+      myFile = SD.open("dados2.txt", FILE_WRITE);
+    if (myFile) {
+    Serial.println("abra com sucesso");
+    myFile.print("Temperatura: ");
+    myFile.print(tDHT11);
+    myFile.print("*C");
+    myFile.println(",");
+    myFile.print("Umidade Relativa: ");
+    myFile.print(urDHT11);
+    myFile.print("%");
+    myFile.println(",");
+    }
+  myFile.close();
+  
+  float tDHT22 = dht22.readTemperature();
+     if  (isnan(tDHT22)) {
+    Serial.println("Falha ao ler o sensor DHT22!");
+    return;
+  }
+//fins de depuração
+     Serial.print("Temperatura do Globo Negro: "); 
+     Serial.print(tDHT22);
+     Serial.println(" *C");
+    
+ //
+    myFile = SD.open("dados2.txt", FILE_WRITE);
+    if (myFile) {
+    Serial.println("abra com sucesso");
+    myFile.print("Temperatura do Globo Negro: ");
+    myFile.print(tDHT22);
+    myFile.print("*C");
+    myFile.println(".");
+    myFile.close();
+}
+}
+void loop() {
+  loggingTime();
+  loggingTemperature();
+
+  delay(600000);
+}
